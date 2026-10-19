@@ -84,7 +84,7 @@ if [ "$KERNEL" = "custom" ]; then
 	# Skip the ~400 MB -dbg package; BTF stays in the kernel itself.
 	make -C "$SRC" O="$KOUT" LOCALVERSION= -j"$JOBS" bindeb-pkg \
 		KDEB_PKGVERSION="$BASTION_VERSION-1" \
-		DPKG_FLAGS="-P pkg.linux-upstream.nokerneldbg"
+		DPKG_FLAGS="--build-profiles=pkg.linux-upstream.nokerneldbg"
 	FLAVOUR="$KVER"
 	# Our kernel is not signed by Debian, so shim would refuse it anyway.
 	SECURE_BOOT="disable"

@@ -1,0 +1,24 @@
+#!/bin/sh
+# Resolve the interface to monitor and start Suricata in AF_PACKET mode.
+set -e
+
+SENSOR_IFACE=auto
+[ -r /etc/bastion/sensor.conf ] && . /etc/bastion/sensor.conf
+
+if [ "$SENSOR_IFACE" = "auto" ]; then
+	SENSOR_IFACE="$(ip -o route show default 2>/dev/null |
+		awk '{ for (i = 1; i < NF; i++) if ($i == "dev") { print $(i + 1); exit } }')"
+fi
+if [ -z "$SENSOR_IFACE" ]; then
+	# No default route yet: fall back to the first non-loopback link.
+	SENSOR_IFACE="$(ip -o link show 2>/dev/null |
+		awk -F': ' '$2 != "lo" { sub(/@.*/, "", $2); print $2; exit }')"
+fi
+if [ -z "$SENSOR_IFACE" ]; then
+	echo "suricata-start: no network interface to monitor" >&2
+	exit 1
+fi
+
+echo "suricata-start: monitoring $SENSOR_IFACE"
+exec /usr/bin/suricata -D --af-packet="$SENSOR_IFACE" \
+	-c /etc/suricata/suricata.yaml --pidfile /run/suricata.pid

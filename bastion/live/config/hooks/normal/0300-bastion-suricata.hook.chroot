@@ -1,0 +1,18 @@
+#!/bin/sh
+# Ship Suricata ready to alert on first boot: low-memory detection profile,
+# Community ID for SIEM correlation, and ET Open rules baked into the image.
+set -e
+
+YAML=/etc/suricata/suricata.yaml
+sed -i 's/^\(  profile: \)medium$/\1low/' "$YAML"
+sed -i 's/^\(\s*community-id: \)false$/\1true/' "$YAML"
+
+if ! suricata-update --no-test --no-reload; then
+	echo "WARNING: suricata-update failed; rules will be fetched by bastion-daily" >&2
+fi
+rm -rf /var/lib/suricata/update/cache/*
+
+# Fail the build on a broken config or ruleset.
+if [ -s /var/lib/suricata/rules/suricata.rules ]; then
+	suricata -T -c "$YAML" -l /tmp
+fi

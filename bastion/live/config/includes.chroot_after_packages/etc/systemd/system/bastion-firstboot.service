@@ -1,0 +1,16 @@
+[Unit]
+Description=Bastion first-boot security baseline (AIDE, rkhunter)
+Documentation=man:aide(1) man:rkhunter(8)
+ConditionKernelCommandLine=!boot=live
+ConditionPathExists=!/var/lib/bastion/firstboot.done
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/bastion/firstboot
+Nice=19
+IOSchedulingClass=idle
+TimeoutStartSec=infinity
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,15 @@
+# DHCP on every wired interface. Wi-Fi: run `iwctl` to connect; iwd then
+# configures the address itself.
+[Match]
+Type=ether
+Kind=!*
+
+[Network]
+DHCP=yes
+IPv6AcceptRA=yes
+
+[DHCPv4]
+UseDomains=yes
+
+[Link]
+RequiredForOnline=no

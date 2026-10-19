@@ -1,0 +1,9 @@
+#!/bin/sh
+# A kernel installed before initramfs-tools gets no initrd; create any missing.
+set -e
+
+for dir in /lib/modules/*; do
+	ver="$(basename "$dir")"
+	[ -e "/boot/vmlinuz-$ver" ] || continue
+	[ -e "/boot/initrd.img-$ver" ] || update-initramfs -c -k "$ver"
+done

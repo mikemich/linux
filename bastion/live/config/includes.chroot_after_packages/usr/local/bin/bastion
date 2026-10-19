@@ -1,0 +1,223 @@
+#!/bin/bash
+# bastion: one command for the Bastion Linux defensive toolset.
+set -uo pipefail
+
+SERVICES=(nftables auditd apparmor fail2ban suricata clamav-freshclam
+	clamav-daemon usbguard ssh zramswap earlyoom bastion-daily.timer)
+SENSOR_CONF=/etc/bastion/sensor.conf
+
+usage() {
+	cat <<'EOF'
+Usage: bastion <command> [args]
+
+  status             Defensive services, sensor interface, rule/baseline state
+  alerts [N]         Last N Suricata alerts (default 20)
+  audit              Lynis + rkhunter + chkrootkit + debsums host audit
+  scan [PATH...]     ClamAV scan (default: /home /root /tmp /var/tmp)
+  update             Update IDS rules, AV signatures and packages
+  sensor IFACE|auto  Choose the interface Suricata monitors
+  enable FEATURE     Turn on: ssh, clamd, usbguard, suricata
+  disable FEATURE    Turn off one of the above
+  baseline           Rebuild AIDE database and rkhunter properties
+EOF
+}
+
+as_root() {
+	if [ "$(id -u)" -ne 0 ]; then
+		exec sudo "$0" "${ARGS[@]}"
+	fi
+}
+
+hdr() { printf '\n\033[1m%s\033[0m\n' "$*"; }
+
+sensor_iface() {
+	local SENSOR_IFACE=auto
+	[ -r "$SENSOR_CONF" ] && . "$SENSOR_CONF"
+	if [ "$SENSOR_IFACE" = auto ]; then
+		ip -o route show default 2>/dev/null |
+			awk '{ for (i = 1; i < NF; i++) if ($i == "dev") { print $(i + 1) " (auto)"; exit } }'
+	else
+		echo "$SENSOR_IFACE"
+	fi
+}
+
+cmd_status() {
+	hdr "Services"
+	local s en act
+	for s in "${SERVICES[@]}"; do
+		en=$(systemctl is-enabled "$s" 2>/dev/null)
+		act=$(systemctl is-active "$s" 2>/dev/null)
+		printf '  %-22s %-10s %s\n' "$s" "${en:-n/a}" "${act:-n/a}"
+	done
+	hdr "Detection"
+	printf '  %-22s %s\n' "sensor interface" "$(sensor_iface)"
+	local rules=/var/lib/suricata/rules/suricata.rules
+	if [ -r "$rules" ]; then
+		printf '  %-22s %s\n' "suricata rules" "$(grep -c '^alert' "$rules") enabled"
+	else
+		printf '  %-22s %s\n' "suricata rules" "none (run: bastion update)"
+	fi
+	if [ -e /var/lib/aide/aide.db ]; then
+		printf '  %-22s %s\n' "AIDE baseline" "$(date -r /var/lib/aide/aide.db '+%F %R')"
+	else
+		printf '  %-22s %s\n' "AIDE baseline" "none (run: bastion baseline)"
+	fi
+	hdr "System"
+	printf '  %-22s %s\n' "kernel" "$(uname -r)"
+	printf '  %-22s %s\n' "memory" "$(free -h | awk '/^Mem:/ { print $3 " used / " $2 }')"
+	printf '  %-22s %s\n' "zram swap" "$(swapon --noheadings --show=SIZE,USED 2>/dev/null | xargs || echo off)"
+	echo
+}
+
+cmd_alerts() {
+	local n="${1:-20}" log=/var/log/suricata/fast.log
+	if [ ! -s "$log" ]; then
+		echo "No Suricata alerts yet ($log)."
+		return 0
+	fi
+	tail -n "$n" "$log"
+}
+
+cmd_audit() {
+	as_root
+	hdr "Lynis (hardening index)"
+	lynis audit system --quick --no-colors 2>/dev/null |
+		grep -E 'Hardening index|Warnings|Suggestions|^\s+! ' || true
+	hdr "rkhunter (warnings only)"
+	rkhunter --check --skip-keypress --report-warnings-only --nocolors || true
+	hdr "chkrootkit"
+	chkrootkit -q || true
+	hdr "debsums (modified package files)"
+	debsums -s 2>&1 || true
+	echo
+	echo "Full Lynis report: /var/log/lynis-report.dat"
+}
+
+cmd_scan() {
+	as_root
+	local paths=("$@")
+	[ ${#paths[@]} -eq 0 ] && paths=(/home /root /tmp /var/tmp)
+	if ! ls /var/lib/clamav/*.c[lv]d >/dev/null 2>&1; then
+		echo "No ClamAV signatures yet; run: bastion update" >&2
+		return 1
+	fi
+	clamscan --recursive --infected --cross-fs=no "${paths[@]}"
+}
+
+update_rules() {
+	echo "Updating Suricata rules..."
+	if suricata-update --no-test -q; then
+		systemctl is-active -q suricata && systemctl reload suricata
+	else
+		echo "suricata-update failed" >&2
+	fi
+	if ! systemctl is-active -q clamav-freshclam; then
+		echo "Updating ClamAV signatures..."
+		freshclam --quiet || echo "freshclam failed" >&2
+	fi
+}
+
+cmd_update() {
+	as_root
+	update_rules
+	echo "Updating packages..."
+	apt-get update -q && apt-get -y -q upgrade
+}
+
+cmd_daily() {
+	as_root
+	update_rules
+	if [ -e /var/lib/aide/aide.db ]; then
+		echo "AIDE integrity check..."
+		aide --check --config /etc/aide/aide.conf || echo "AIDE reported changes" >&2
+	fi
+	echo "rkhunter check..."
+	rkhunter --cronjob --report-warnings-only --nocolors || true
+}
+
+cmd_sensor() {
+	as_root
+	local iface="${1:-}"
+	if [ -z "$iface" ]; then
+		echo "Current: $(sensor_iface)"
+		echo "Available: $(ls /sys/class/net | grep -v '^lo$' | xargs)"
+		return 0
+	fi
+	if [ "$iface" != auto ] && [ ! -e "/sys/class/net/$iface" ]; then
+		echo "No such interface: $iface" >&2
+		return 1
+	fi
+	sed -i "s/^SENSOR_IFACE=.*/SENSOR_IFACE=$iface/" "$SENSOR_CONF"
+	systemctl restart suricata && echo "Suricata now monitoring: $(sensor_iface)"
+}
+
+feature_unit() {
+	case "$1" in
+	ssh) echo ssh ;;
+	clamd) echo clamav-daemon ;;
+	usbguard) echo usbguard ;;
+	suricata) echo suricata ;;
+	*) echo "Unknown feature: $1 (ssh, clamd, usbguard, suricata)" >&2; return 1 ;;
+	esac
+}
+
+cmd_enable() {
+	as_root
+	local unit
+	unit=$(feature_unit "${1:-}") || return 1
+	case "$1" in
+	ssh)
+		ssh-keygen -A
+		echo 'add rule inet bastion input tcp dport 22 ct state new limit rate 10/minute accept' \
+			> /etc/nftables.d/ssh.nft
+		systemctl reload nftables
+		if ! ls /home/*/.ssh/authorized_keys >/dev/null 2>&1; then
+			echo "Note: password login is disabled; add a key to ~/.ssh/authorized_keys" >&2
+		fi
+		;;
+	usbguard)
+		# Allow the devices plugged in right now; block anything new.
+		usbguard generate-policy > /etc/usbguard/rules.conf
+		chmod 600 /etc/usbguard/rules.conf
+		;;
+	esac
+	systemctl enable --now "$unit" && echo "Enabled $1"
+}
+
+cmd_disable() {
+	as_root
+	local unit
+	unit=$(feature_unit "${1:-}") || return 1
+	systemctl disable --now "$unit"
+	if [ "$1" = ssh ]; then
+		rm -f /etc/nftables.d/ssh.nft
+		systemctl reload nftables
+	fi
+	echo "Disabled $1"
+}
+
+cmd_baseline() {
+	as_root
+	echo "Building AIDE database (this takes a few minutes)..."
+	nice -n 19 aideinit --yes --force
+	rkhunter --propupd --nocolors
+	mkdir -p /var/lib/bastion && touch /var/lib/bastion/firstboot.done
+}
+
+ARGS=("$@")
+cmd="${1:-status}"
+[ $# -gt 0 ] && shift
+case "$cmd" in
+status) cmd_status ;;
+alerts) cmd_alerts "$@" ;;
+audit) cmd_audit ;;
+scan) cmd_scan "$@" ;;
+update) cmd_update ;;
+daily) cmd_daily ;;
+sensor) cmd_sensor "$@" ;;
+enable) cmd_enable "$@" ;;
+disable) cmd_disable "$@" ;;
+baseline) cmd_baseline ;;
+-h|--help|help) usage ;;
+*) usage >&2; exit 2 ;;
+esac

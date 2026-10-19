@@ -1,0 +1,24 @@
+# Optional minimal Xfce desktop (build.sh --desktop).
+xserver-xorg-core
+xserver-xorg-input-libinput
+xserver-xorg-legacy
+x11-xserver-utils
+xauth
+dbus-user-session
+polkitd
+lightdm
+lightdm-gtk-greeter
+xfce4-session
+xfwm4
+xfce4-panel
+xfce4-settings
+xfce4-notifyd
+xfdesktop4
+xfce4-terminal
+thunar
+mousepad
+adwaita-icon-theme
+fonts-dejavu-core
+network-manager
+network-manager-gnome
+wireshark

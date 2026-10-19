@@ -38,6 +38,7 @@ openssh-server
 
 # Firmware and microcode for common hardware
 firmware-linux-free
+wireless-regdb
 firmware-misc-nonfree
 firmware-realtek
 firmware-iwlwifi

@@ -16,7 +16,7 @@ contains the Debian installer.
 |------|-------|---------------|
 | Network IDS | Suricata + ET Open rules (in the image), suricata-update | **running**, monitors the default-route interface |
 | Firewall / IPS | nftables (drop all inbound), fail2ban | **running** |
-| Auditing | auditd with a focused ruleset, AppArmor, Landlock, Yama | **running** |
+| Auditing | auditd with a focused ruleset, AppArmor, Landlock, Yama | **running** (Debian loads AppArmor profiles only on installed systems, not live media) |
 | Integrity | AIDE, rkhunter, chkrootkit, unhide, debsums | baseline built at first boot of an installed system |
 | Malware | ClamAV (freshclam on), YARA | on-demand scan; `clamd` off (it uses ~1 GB of RAM) |
 | Hardening / compliance | Lynis, OpenSCAP + SCAP Security Guide, needrestart, unattended-upgrades, usbguard, pwquality | security updates installed automatically |

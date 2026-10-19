@@ -10,8 +10,14 @@ systemctl enable \
 
 # Off by default; `bastion enable <feature>` turns them on.
 #  ssh: no keys exist yet; clamav-daemon: ~1 GB RSS;
-#  usbguard: needs a policy built from the real machine's devices.
-systemctl disable ssh.service clamav-daemon.service usbguard.service 2>/dev/null || true
+#  usbguard: needs a policy built from the real machine's devices. Its
+#  packaged policy is empty, so starting it (directly or via usbguard-dbus)
+#  would block every USB device, keyboards included.
+systemctl disable ssh.service clamav-daemon.service \
+	usbguard.service usbguard-dbus.service 2>/dev/null || true
+
+# bastion-daily already runs AIDE; Lynis runs on demand via `bastion audit`.
+systemctl disable dailyaidecheck.timer lynis.timer 2>/dev/null || true
 
 # Faster boot, fewer background wakeups.
 systemctl disable systemd-networkd-wait-online.service 2>/dev/null || true

@@ -7,12 +7,16 @@ YAML=/etc/suricata/suricata.yaml
 sed -i 's/^\(  profile: \)medium$/\1low/' "$YAML"
 sed -i 's/^\(\s*community-id: \)false$/\1true/' "$YAML"
 
-if ! suricata-update --no-test --no-reload; then
-	echo "WARNING: suricata-update failed; rules will be fetched by bastion-daily" >&2
+RULES=/var/lib/suricata/rules/suricata.rules
+suricata-update --no-test --no-reload || true
+# suricata-update exits 0 even when the download fails, so check for ET rules.
+if ! grep -q 'msg:"ET ' "$RULES" 2>/dev/null; then
+	echo "WARNING: ET Open rules were not downloaded; the image ships only" \
+		"Suricata's built-in rules until bastion-daily or 'bastion update' runs" >&2
 fi
 rm -rf /var/lib/suricata/update/cache/*
 
 # Fail the build on a broken config or ruleset.
-if [ -s /var/lib/suricata/rules/suricata.rules ]; then
+if [ -s "$RULES" ]; then
 	suricata -T -c "$YAML" -l /tmp
 fi

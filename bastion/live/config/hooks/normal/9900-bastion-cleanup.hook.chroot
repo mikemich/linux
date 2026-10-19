@@ -1,0 +1,8 @@
+#!/bin/sh
+# live-build restores /etc/resolv.conf.orig when it tears the chroot down;
+# point it at systemd-resolved so installed systems get working DNS.
+set -e
+
+ln -sfn ../run/systemd/resolve/stub-resolv.conf /etc/resolv.conf.orig
+rm -f /etc/.resolv.conf.systemd-resolved.bak
+apt-get clean

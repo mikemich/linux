@@ -1,0 +1,63 @@
+# Minimal base system (debootstrap runs with --variant=minbase and
+# recommends are off, so everything needed is listed explicitly).
+
+# Live boot and installer support
+live-boot
+live-config
+live-config-systemd
+user-setup
+sudo
+
+# Core system
+systemd-sysv
+systemd-timesyncd
+libpam-systemd
+dbus
+udev
+kmod
+procps
+initramfs-tools
+zstd
+apt-utils
+whiptail
+logrotate
+locales
+console-setup
+keyboard-configuration
+kbd
+
+# Networking: systemd-networkd + resolved + iwd (lighter than NetworkManager)
+netbase
+systemd-resolved
+iwd
+iproute2
+iputils-ping
+ca-certificates
+curl
+openssh-server
+
+# Firmware and microcode for common hardware
+firmware-linux-free
+firmware-misc-nonfree
+firmware-realtek
+firmware-iwlwifi
+intel-microcode
+amd64-microcode
+
+# Resource efficiency
+zram-tools
+earlyoom
+
+# Admin essentials
+bash-completion
+nano
+vim-tiny
+less
+man-db
+tmux
+htop
+file
+pciutils
+usbutils
+lsof
+strace

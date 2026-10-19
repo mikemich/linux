@@ -1,0 +1,15 @@
+#!/bin/sh
+# One-time security baseline on an installed system. Runs at idle priority
+# so the machine is usable while it works.
+set -u
+
+mkdir -p /var/lib/bastion
+
+echo "bastion-firstboot: building AIDE file-integrity database"
+aideinit --yes --force || echo "bastion-firstboot: aideinit failed" >&2
+
+echo "bastion-firstboot: recording rkhunter file properties"
+rkhunter --propupd --nocolors || echo "bastion-firstboot: rkhunter failed" >&2
+
+touch /var/lib/bastion/firstboot.done
+echo "bastion-firstboot: done"

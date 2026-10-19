@@ -1,0 +1,10 @@
+[Unit]
+Description=Bastion daily rule update and integrity checks
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/bastion daily
+Nice=19
+IOSchedulingClass=idle

@@ -1,0 +1,76 @@
+# Defensive security toolset. Strictly detection, hardening, monitoring and
+# forensics: no exploitation, cracking or offensive scanning tools.
+
+# Network security monitoring / IDS
+suricata
+suricata-update
+tcpdump
+tshark
+termshark
+ngrep
+iftop
+nethogs
+arpwatch
+p0f
+nfdump
+conntrack
+ethtool
+bind9-dnsutils
+whois
+mtr-tiny
+
+# Firewall and intrusion prevention
+nftables
+fail2ban
+
+# Hardening, auditing and compliance
+apparmor
+apparmor-utils
+apparmor-profiles
+apparmor-profiles-extra
+auditd
+audispd-plugins
+lynis
+openscap-scanner
+ssg-debian
+debsums
+needrestart
+unattended-upgrades
+usbguard
+libpam-pwquality
+
+# File integrity, rootkit and malware detection
+aide
+aide-common
+rkhunter
+chkrootkit
+unhide
+clamav
+clamav-freshclam
+clamav-daemon
+yara
+
+# Forensics and incident response
+sleuthkit
+ewf-tools
+dc3dd
+hashdeep
+ssdeep
+testdisk
+foremost
+libimage-exiftool-perl
+binwalk
+
+# eBPF and system observability
+bpftrace
+bpftool
+sysstat
+iotop-c
+
+# Log analysis and crypto
+lnav
+jq
+ripgrep
+gnupg
+cryptsetup
+openssl

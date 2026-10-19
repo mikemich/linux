@@ -1,0 +1,4 @@
+# Compressed swap in RAM (zram-tools). zstd gives ~3:1 on typical memory.
+ALGO=zstd
+PERCENT=50
+PRIORITY=100

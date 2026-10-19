@@ -1,0 +1,3 @@
+# Local firewall additions, loaded after /etc/nftables.conf.
+# Example: allow HTTPS to this host
+#   add rule inet bastion input tcp dport 443 accept

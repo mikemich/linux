@@ -1,0 +1,23 @@
+#!/bin/sh
+# Decide what runs at boot: the defensive stack on, heavy or risky extras off.
+set -e
+
+systemctl enable \
+	systemd-networkd systemd-resolved systemd-timesyncd \
+	nftables auditd apparmor fail2ban suricata clamav-freshclam \
+	zramswap earlyoom \
+	bastion-firstboot.service bastion-daily.timer
+
+# Off by default; `bastion enable <feature>` turns them on.
+#  ssh: no keys exist yet; clamav-daemon: ~1 GB RSS;
+#  usbguard: needs a policy built from the real machine's devices.
+systemctl disable ssh.service clamav-daemon.service usbguard.service 2>/dev/null || true
+
+# Faster boot, fewer background wakeups.
+systemctl disable systemd-networkd-wait-online.service 2>/dev/null || true
+systemctl disable man-db.timer e2scrub_all.timer 2>/dev/null || true
+
+# Desktop builds use NetworkManager instead of networkd/iwd.
+if [ -e /usr/sbin/NetworkManager ]; then
+	systemctl disable systemd-networkd.service iwd.service 2>/dev/null || true
+fi

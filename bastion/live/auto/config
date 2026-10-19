@@ -36,7 +36,7 @@ lb config noauto \
 	--image-name bastion \
 	--iso-application "Bastion Linux $BASTION_VERSION" \
 	--iso-publisher "Bastion Linux" \
-	--iso-volume "BASTION_${BASTION_VERSION}" \
+	--iso-volume "BASTION_$(echo "$BASTION_VERSION" | tr . _)" \
 	--bootappend-live "boot=live components quiet hostname=bastion username=bastion $HARDEN" \
 	--bootappend-install "quiet $HARDEN" \
 	"${@}"

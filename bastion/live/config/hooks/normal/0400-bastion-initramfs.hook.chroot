@@ -1,5 +1,5 @@
 #!/bin/sh
-# A kernel installed before initramfs-tools gets no initrd; create any missing.
+# Kernel support files: create missing initrds, pick the matching regdb.
 set -e
 
 for dir in /lib/modules/*; do
@@ -7,3 +7,9 @@ for dir in /lib/modules/*; do
 	[ -e "/boot/vmlinuz-$ver" ] || continue
 	[ -e "/boot/initrd.img-$ver" ] || update-initramfs -c -k "$ver"
 done
+
+# Our kernel only trusts the upstream wireless-regdb signing key; Debian's
+# default regulatory.db is signed with Debian's key, which it rejects.
+if ls /boot/vmlinuz-*-bastion >/dev/null 2>&1; then
+	update-alternatives --set regulatory.db /lib/firmware/regulatory.db-upstream
+fi

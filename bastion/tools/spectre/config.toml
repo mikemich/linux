@@ -1,0 +1,19 @@
+# Spectre (Spctr) passive network monitor: Bastion Linux defaults.
+# Start it with `bastion enable spectre`; the dashboard is local-only at
+# http://127.0.0.1:7777. All other settings use Spectre's built-in defaults
+# (honeypot and active response off); see the Spctr README to change them.
+interface = "any"
+mode = "homelan"
+api_port = 7777
+api_bind = "127.0.0.1"
+db_path = "/var/lib/spectre/spectre.db"
+log_file = "/var/log/spectre/spectre.log"
+rules_path = "/etc/spectre/rules.toml"
+trusted_ranges = [
+    "10.0.0.0/8",
+    "172.16.0.0/12",
+    "192.168.0.0/16",
+    "169.254.0.0/16",
+    "fd00::/8",
+    "fe80::/10",
+]

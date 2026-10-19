@@ -9,9 +9,13 @@
 #                          stock: use Debian's signed kernel (Secure Boot,
 #                          widest hardware support).
 #   --desktop              add a minimal Xfce desktop + Wireshark GUI.
+#   --no-tools             skip your own tools from bastion/tools.list.
 #   --jobs N               parallel kernel build jobs (default: nproc).
 #   --install-deps         apt-get install the build dependencies first.
 #   --out DIR              output directory (default: bastion/out).
+#
+# Your tools are cloned from GitHub (set GITHUB_TOKEN for private repos) or
+# taken from local checkouts in BASTION_TOOLS_DIR; see build-tools.sh.
 #
 # Must run as root on a Debian 13 (trixie) amd64 host, or anywhere via
 # bastion/build-in-docker.sh.
@@ -22,6 +26,7 @@ BASTION_DIST="trixie"
 
 KERNEL="custom"
 DESKTOP=0
+TOOLS=1
 JOBS="$(nproc)"
 INSTALL_DEPS=0
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
@@ -31,10 +36,11 @@ while [ $# -gt 0 ]; do
 	case "$1" in
 	--kernel) KERNEL="$2"; shift 2 ;;
 	--desktop) DESKTOP=1; shift ;;
+	--no-tools) TOOLS=0; shift ;;
 	--jobs) JOBS="$2"; shift 2 ;;
 	--install-deps) INSTALL_DEPS=1; shift ;;
 	--out) OUT="$(realpath -m "$2")"; shift 2 ;;
-	-h|--help) sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+	-h|--help) sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
 	*) echo "unknown option: $1" >&2; exit 2 ;;
 	esac
 done
@@ -53,7 +59,8 @@ if [ "$INSTALL_DEPS" -eq 1 ]; then
 	apt-get install -y --no-install-recommends \
 		live-build debootstrap ca-certificates curl \
 		build-essential bc bison flex kmod cpio rsync python3 git \
-		libelf-dev libdw-dev libssl-dev dwarves dpkg-dev debhelper
+		libelf-dev libdw-dev libssl-dev dwarves dpkg-dev debhelper \
+		cargo rustc pkg-config libpcap-dev nodejs npm
 fi
 
 command -v lb >/dev/null || die "live-build not installed (use --install-deps)"
@@ -74,11 +81,18 @@ if [ "$KERNEL" = "custom" ]; then
 	KVER="$(make -s -C "$SRC" O="$KOUT" LOCALVERSION= kernelrelease)"
 	log "Building kernel $KVER packages with $JOBS jobs"
 	rm -f "$OUT"/kernel/linux-*.deb
+	# Skip the ~400 MB -dbg package; BTF stays in the kernel itself.
 	make -C "$SRC" O="$KOUT" LOCALVERSION= -j"$JOBS" bindeb-pkg \
-		KDEB_PKGVERSION="$BASTION_VERSION-1"
+		KDEB_PKGVERSION="$BASTION_VERSION-1" \
+		DPKG_FLAGS="-P pkg.linux-upstream.nokerneldbg"
 	FLAVOUR="$KVER"
 	# Our kernel is not signed by Debian, so shim would refuse it anyway.
 	SECURE_BOOT="disable"
+fi
+
+if [ "$TOOLS" -eq 1 ]; then
+	log "Building your tools from bastion/tools.list"
+	"$SRC/bastion/build-tools.sh" "$OUT"
 fi
 
 LIVE="$OUT/live"
@@ -94,6 +108,11 @@ echo "BASTION_VERSION=$BASTION_VERSION" > "$LIVE/config/bastion.env"
 if [ "$DESKTOP" -eq 1 ]; then
 	cp "$SRC/bastion/live/optional/desktop.list.chroot" \
 		"$LIVE/config/package-lists/bastion-desktop.list.chroot"
+fi
+if [ "$TOOLS" -eq 1 ] && [ -n "$(ls -A "$OUT/tools/stage" 2>/dev/null)" ]; then
+	cp -a "$OUT/tools/stage/." "$LIVE/config/includes.chroot_after_packages/"
+	cp "$SRC/bastion/live/optional/mytools.list.chroot" \
+		"$LIVE/config/package-lists/bastion-mytools.list.chroot"
 fi
 if [ "$KERNEL" = "custom" ]; then
 	mkdir -p "$LIVE/config/packages.chroot"

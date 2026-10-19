@@ -1,0 +1,20 @@
+# Your own tools, fetched and built into the image by bastion/build-tools.sh.
+#
+#   name         kind    source                                       binaries
+#
+# kind:    python (installed into /opt/bastion-tools/venv, in this order),
+#          cargo (release build; binaries go to /usr/local/bin),
+#          spctr (Spctr's daemon with the web UI embedded).
+# source:  a git URL, or "local" for projects that only exist on your machine.
+#          With BASTION_TOOLS_DIR=~/Documents/repos, a matching folder there is
+#          used instead of cloning, for every entry.
+# binaries (cargo only): comma-separated; defaults to the tool name.
+
+antirai      python  https://github.com/mikemich/antirai
+dfndr        python  https://github.com/mikemich/dfndr
+spctr        spctr   https://github.com/mikemich/Spctr
+lightsysmon  cargo   https://github.com/mikemich/lightsysmon
+
+# Not on GitHub yet: built only when found under BASTION_TOOLS_DIR.
+swissapps    python  local
+defmap       cargo   local

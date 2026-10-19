@@ -25,6 +25,44 @@ contains the Debian installer.
 | Observability | bpftrace, bpftool (kernel ships BTF), sysstat, iotop-c, lnav, jq | on demand |
 | Optional desktop | Xfce, LightDM, Wireshark, NetworkManager | only with `--desktop` |
 
+## Your own tools
+
+Your own projects from `bastion/tools.list` are built into the image as well:
+
+| Tool | What it does | How to run it |
+|------|--------------|---------------|
+| [antirai](https://github.com/mikemich/antirai) | Finds infected devices (Mirai, worms, botnets, cryptojacking) and LAN attacks such as ARP, DHCP and DNS spoofing | `sudo antirai` |
+| [dfndr](https://github.com/mikemich/dfndr) | One security dashboard and score for your network, with antirai as its engine | `sudo dfndr` → http://127.0.0.1:8770 |
+| [Spctr](https://github.com/mikemich/Spctr) (Spectre) | Passive device intelligence and anomaly mesh, with its web UI built into the binary | `bastion enable spectre` → http://127.0.0.1:7777 |
+| [lightsysmon](https://github.com/mikemich/lightsysmon) | Lightweight live system monitor | `lightsysmon watch` |
+| swissapps, defmap | Extra dfndr checks, and "who is scanning me" detection | Built when found locally (see below) |
+
+`bastion tools` lists the tools installed in an image.
+
+- The Python tools share one virtualenv in `/opt/bastion-tools`, built on
+  Debian's scapy and textual, so the build downloads nothing from PyPI.
+- Spectre runs as an unprivileged service with only the packet-capture
+  capability. Its dashboard is local-only, and its honeypot and active
+  response are off.
+
+Building them:
+
+- Repositories are cloned at build time. For private repositories, set
+  `GITHUB_TOKEN` to a token that can read them.
+- Projects that exist only on your machine (`swissapps`, `defmap`) are used
+  when you point `BASTION_TOOLS_DIR` at the folder that holds your checkouts.
+  A checkout found there is also used in place of cloning:
+
+  ```
+  sudo GITHUB_TOKEN=ghp_... BASTION_TOOLS_DIR=~/Documents/repos ./bastion/build.sh
+  ```
+
+- To add another tool, add a line to `bastion/tools.list`. Kinds are
+  `python`, `cargo` and `spctr`.
+- `--no-tools` builds without your tools.
+
+## The bastion command
+
 Everything is driven by one command:
 
 ```
@@ -32,9 +70,10 @@ bastion                 # status: services, sensor, rules, baseline, memory
 bastion alerts 50       # latest Suricata alerts
 bastion audit           # Lynis + rkhunter + chkrootkit + debsums
 bastion scan /srv       # ClamAV scan
+bastion tools           # your own tools in this image
 bastion update          # IDS rules, AV signatures, packages
 bastion sensor enp3s0   # pin Suricata to a SPAN/TAP port (or "auto")
-bastion enable ssh      # also: clamd, usbguard, suricata (and disable ...)
+bastion enable ssh      # also: clamd, usbguard, suricata, spectre (and disable ...)
 bastion baseline        # rebuild the AIDE and rkhunter baselines
 ```
 

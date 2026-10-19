@@ -3,7 +3,8 @@
 set -uo pipefail
 
 SERVICES=(nftables auditd apparmor fail2ban suricata clamav-freshclam
-	clamav-daemon usbguard ssh zramswap earlyoom bastion-daily.timer)
+	clamav-daemon usbguard ssh spectre zramswap earlyoom bastion-daily.timer)
+MY_TOOLS=(antirai dfndr spectre-daemon lightsysmon swissapps defmap)
 SENSOR_CONF=/etc/bastion/sensor.conf
 
 usage() {
@@ -16,7 +17,8 @@ Usage: bastion <command> [args]
   scan [PATH...]     ClamAV scan (default: /home /root /tmp /var/tmp)
   update             Update IDS rules, AV signatures and packages
   sensor IFACE|auto  Choose the interface Suricata monitors
-  enable FEATURE     Turn on: ssh, clamd, usbguard, suricata
+  tools              Your own tools installed in this image
+  enable FEATURE     Turn on: ssh, clamd, usbguard, suricata, spectre
   disable FEATURE    Turn off one of the above
   baseline           Rebuild AIDE database and rkhunter properties
 EOF
@@ -62,11 +64,33 @@ cmd_status() {
 	else
 		printf '  %-22s %s\n' "AIDE baseline" "none (run: bastion baseline)"
 	fi
+	hdr "Your tools"
+	printf '  %s\n' "$(installed_tools | xargs) (details: bastion tools)"
 	hdr "System"
 	printf '  %-22s %s\n' "kernel" "$(uname -r)"
 	printf '  %-22s %s\n' "memory" "$(free -h | awk '/^Mem:/ { print $3 " used / " $2 }')"
 	printf '  %-22s %s\n' "zram swap" "$(swapon --noheadings --show=SIZE,USED 2>/dev/null | xargs || echo off)"
 	echo
+}
+
+installed_tools() {
+	local t
+	for t in "${MY_TOOLS[@]}"; do
+		command -v "$t" >/dev/null && echo "$t"
+	done
+}
+
+cmd_tools() {
+	local t
+	for t in $(installed_tools); do
+		case "$t" in
+		antirai) echo "  antirai         sudo antirai          infected-device and LAN attack detector" ;;
+		dfndr) echo "  dfndr           sudo dfndr            network security dashboard (http://127.0.0.1:8770)" ;;
+		spectre-daemon) echo "  spectre         bastion enable spectre  passive network intel (http://127.0.0.1:7777)" ;;
+		lightsysmon) echo "  lightsysmon     lightsysmon watch     live CPU, memory, disk, network, processes" ;;
+		*) echo "  $t" ;;
+		esac
+	done
 }
 
 cmd_alerts() {
@@ -157,7 +181,8 @@ feature_unit() {
 	clamd) echo clamav-daemon ;;
 	usbguard) echo usbguard ;;
 	suricata) echo suricata ;;
-	*) echo "Unknown feature: $1 (ssh, clamd, usbguard, suricata)" >&2; return 1 ;;
+	spectre) echo spectre ;;
+	*) echo "Unknown feature: $1 (ssh, clamd, usbguard, suricata, spectre)" >&2; return 1 ;;
 	esac
 }
 
@@ -210,6 +235,7 @@ cmd="${1:-status}"
 case "$cmd" in
 status) cmd_status ;;
 alerts) cmd_alerts "$@" ;;
+tools) cmd_tools ;;
 audit) cmd_audit ;;
 scan) cmd_scan "$@" ;;
 update) cmd_update ;;

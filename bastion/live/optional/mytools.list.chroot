@@ -1,0 +1,6 @@
+# Runtime dependencies of your own tools (added when build-tools.sh built any).
+python3-venv
+python3-setuptools
+python3-scapy
+python3-textual
+libpcap0.8t64

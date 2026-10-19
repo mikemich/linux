@@ -1,0 +1,24 @@
+[Unit]
+Description=Spectre passive network intelligence (Spctr)
+Documentation=https://github.com/mikemich/Spctr
+After=network-online.target
+
+[Service]
+Environment=SPECTRE_CONFIG=/etc/spectre/config.toml
+ExecStart=/usr/local/bin/spectre-daemon
+WorkingDirectory=/var/lib/spectre
+DynamicUser=yes
+StateDirectory=spectre
+LogsDirectory=spectre
+AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
+CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+Nice=5
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

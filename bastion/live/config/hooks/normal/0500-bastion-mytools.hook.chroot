@@ -1,0 +1,17 @@
+#!/bin/sh
+# Install the Python tools staged by bastion/build-tools.sh into one venv.
+# It reuses Debian's scapy and textual, so nothing is downloaded from PyPI.
+set -e
+
+T=/opt/bastion-tools
+[ -s "$T/python.order" ] || exit 0
+
+python3 -m venv --system-site-packages "$T/venv"
+while read -r name; do
+	"$T/venv/bin/pip" install --quiet --no-deps --no-build-isolation \
+		--no-index --no-cache-dir "$T/src/$name"
+	if [ -x "$T/venv/bin/$name" ]; then
+		ln -sf "$T/venv/bin/$name" "/usr/local/bin/$name"
+	fi
+done < "$T/python.order"
+rm -rf "$T/src"

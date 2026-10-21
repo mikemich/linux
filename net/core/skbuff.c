@@ -7163,8 +7163,7 @@ struct skb_ext *__skb_ext_alloc(gfp_t flags)
 	return new;
 }
 
-static struct skb_ext *skb_ext_maybe_cow(struct skb_ext *old,
-					 unsigned int old_active)
+static struct skb_ext *skb_ext_maybe_cow(struct skb_ext *old)
 {
 	struct skb_ext *new;
 
@@ -7178,8 +7177,16 @@ static struct skb_ext *skb_ext_maybe_cow(struct skb_ext *old,
 	memcpy(new, old, old->chunks * SKB_EXT_ALIGN_VALUE);
 	refcount_set(&new->refcnt, 1);
 
+	/* The whole blob, including each extension's offset[] slot, was just
+	 * copied, so take a reference for every extension the storage carries.
+	 * This must match the by-offset test __skb_ext_put() uses to drop
+	 * them: an extension removed from a shared skb clears only that skb's
+	 * active_extensions bit (see __skb_ext_del()), so keying on the bit
+	 * here would copy the extension without a reference and later
+	 * double-free it.
+	 */
 #ifdef CONFIG_XFRM
-	if (old_active & (1 << SKB_EXT_SEC_PATH)) {
+	if (__skb_ext_exist(old, SKB_EXT_SEC_PATH)) {
 		struct sec_path *sp = skb_ext_get_ptr(old, SKB_EXT_SEC_PATH);
 		unsigned int i;
 
@@ -7188,7 +7195,7 @@ static struct skb_ext *skb_ext_maybe_cow(struct skb_ext *old,
 	}
 #endif
 #ifdef CONFIG_MCTP_FLOWS
-	if (old_active & (1 << SKB_EXT_MCTP)) {
+	if (__skb_ext_exist(old, SKB_EXT_MCTP)) {
 		struct mctp_flow *flow = skb_ext_get_ptr(old, SKB_EXT_MCTP);
 
 		if (flow->key)
@@ -7246,7 +7253,7 @@ void *skb_ext_add(struct sk_buff *skb, enum skb_ext_id id)
 	if (skb->active_extensions) {
 		old = skb->extensions;
 
-		new = skb_ext_maybe_cow(old, skb->active_extensions);
+		new = skb_ext_maybe_cow(old);
 		if (!new)
 			return NULL;
 
